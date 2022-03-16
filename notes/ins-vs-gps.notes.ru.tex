@@ -1,0 +1,258 @@
+\documentclass[
+  AUTHOR={Симаков, В.А.},
+  TITLE={Управление ориентацией беспилотных систем},
+  SUBJECT={Проблемы навигации летательных аппаратов},
+  SOURCE={./\jobname.zip},
+  12pt,oneside]{commart}
+
+\setdefaultlanguage{russian}
+\setotherlanguages{ukrainian,english}
+
+\geometry{
+  left=2cm,
+  top=2cm,
+  right=2cm,
+  bottom=2cm}
+
+\begin{document}
+
+\section*{Некоторые соглашения}
+
+\begin{enumerate}
+\item Опорная СК ($I$): тело отсчета~--- Земля; ориентация осей~--- NED (North--East--Down); начало отсчета~--- стартовая позиция центра масс аппарата.
+\item Связанная СК ($E$): ориентация и начало отсчета известным образом закреплены за конфигурацией аппарата. Переход от опорной СК к связанной ($I\hm\rightarrow E$) задается вектором параллельного переноса $\mathbf{r}_{IE}$, направленным из начала координат $I$ в начало координат $E$, и матрицей поворота $\mathbf{R}_{IE}$. При этом, очевидно, $\mathbf{r}_{EI}\hm=-\mathbf{r}_{IE}$, $\mathbf{R}_{EI}\hm=\mathbf{R}_{IE}^{-1}\hm\equiv\mathbf{R}_{IE}^{\intercal}$.
+\item Компенсация ошибок GPS-датчиков осуществляется при помощи расширенного фильтра Калмана. Ошибки считаются независимыми нормально распределенными случайными величинами с нулевым средним и заданной (известной) дисперсией.
+\item Компенсация ошибок датчиков угловой скорости производится посредством выделения равномерной и гармонической компонент в показаниях датчика угловой скорости.
+\item Компенсация ошибок магнитометра и акселерометра осуществляется путем введения в модель поправочных слагаемых, полученных в ходе предварительной калибровки датчиков. Набор необходимых процедур и порядок их проведения обсуждаются в~\cite{ivanov,ozyagcilar}.
+\end{enumerate}
+
+\section*{Список величин}
+
+$\mathbf{x}=(\mathbf{P}^{\intercal},\,\mathbf{v}^{\intercal},\,\mathbf{q}^{\intercal},\,\mathbf{b}^{\intercal},\,\mathbf{\mu}^{\intercal})^\intercal$~--- вектор состояния, в котором:
+
+\begin{itemize}
+\item $\mathbf{P}\hm=(P_x,\,P_y,\,P_z)^\intercal$~--- положение начала отсчета связанной СК относительно опорной;
+\item $\mathbf{v}\hm=(v_x,\,v_y,\,v_z)^\intercal$~--- скорость связанной СК при ее поступательном движении относительно опорной;
+\item $\mathbf{q}\hm=(q_0,\,q_1,\,q_2,\,q_3)^\intercal$~--- набор параметров Родрига-Гамильтона, задающих кватернион ориентации связанной СК относительно опорной;
+\item $\mathbf{b}\hm=(\mathbf{b}_0^{\intercal},\,\mathbf{b}_1^{\intercal},\,\dots,\,\mathbf{b}_{N_b}^{\intercal})^\intercal$~--- систематические ошибки датчика угловой скорости:
+\begin{itemize}
+\item $\mathbf{b}_0\hm=(b_x^{(0)},\,b_y^{(0)},\,b_z^{(0)})^\intercal$~--- поправка к угловой скорости для равномерной компоненты ошибки;
+\item $\mathbf{b}_i\hm=(b_x^{(i)},\,b_y^{(i)},\,b_z^{(i)})^\intercal$, $i\hm=\overline{1,N_b}$~--- поправки к угловой скорости для гармонической составляющей ошибки ($N_b$~--- предполагаемое количество независимых гармоник);
+\end{itemize}
+\item $\mathbf{\mu}\hm=(\mu_1,\,\mu_2,\,\dots,\,\mu_{N_b})^{\intercal}$~--- собственные колебательные частоты для соответствующих гармонических компонент ошибки датчика угловой скорости.
+\end{itemize}
+
+$\mathbf{u}\hm=(\mathbf{\omega}_m^{\intercal},\,\mathbf{a}_m^{\intercal},\,T)^\intercal$~--- вход системы, на который поступают искаженные помехами показания инерциальных датчиков и термометра:
+
+\begin{itemize}
+\item $\mathbf{\omega}_m\hm=(\omega_x^{(m)},\,\omega_y^{(m)},\,\omega_z^{(m)})^{\intercal}$~--- компоненты угловой скорости гиродатчика оносительно связанной СК;
+\item $\mathbf{a}_m\hm=(a_x^{(m)},\,a_y^{(m)},\,a_z^{(m)})^{\intercal}$~--- компоненты ускорения акселерометра относительно связанной СК;
+\item $T$~--- температура приборной панели.
+\end{itemize}
+
+$\mathbf{y}\hm=(\mathbf{P}^{\intercal},\,\mathbf{B}_E^{\intercal},\,A)^\intercal$~--- измеряемый выход системы, содержащий, помимо положения $\mathbf{P}$ связанной СК относительно опорной, следующие переменные:
+
+\begin{itemize}
+\item $\mathbf{B}_E\hm=(B_x^{(E)},\,B_y^{(E)},\,B_z^{(E)})^\intercal$~--- вектор геомагнитного поля относительно связанной СК;
+\item $A$~--- показания бортового барометра.
+\end{itemize}
+
+\noindent Скорость движения аппарата, доступная по каналу GPS, не включается в состав вектора $\mathbf{y}$, поскольку сама оценивается внутренними алгоритмами фильтрации GPS-системы и, следовательно, не является измеряемой величиной.
+
+$\mathbf{b}_{\omega}\hm=\sum_{k=0}^{N_b}\mathbf{b}_k$~--- суммарная систематическая погрешность в показаниях датчика угловой скорости.
+
+$\mathbf{w}_b$~--- вектор белого шума для оценки скорости блуждания равномерной компоненты ошибки гиродатчика. Ковариационная матрица: $\mathbf{C}_b\hm=\mathrm{diag}(\sigma_{b_x}^2,\,\sigma_{b_y}^2,\,\sigma_{b_z}^2)$.
+
+$\mathbf{w}_{\omega}$, $\mathbf{w}_a$, $\mathbf{w}_T$~--- векторы белого шума, отвечающие случайным помехам при регистрации показаний датчика угловой скорости, акселерометра и термометра. Соответствующие ковариационные матрицы: $\mathbf{C}_{\omega}\hm=\mathrm{diag}(\sigma_{\omega_x}^2,\,\sigma_{\omega_y}^2,\,\sigma_{\omega_z}^2)$, $\mathbf{C}_a\hm=\mathrm{diag}(\sigma_{a_x}^2,\,\sigma_{a_y}^2,\,\sigma_{a_z}^2)$, $\mathbf{C}_T\hm=\sigma_T^2$.
+
+$\mathbf{w}\hm=(\mathbf{w}_{\omega}^{\intercal},\,\mathbf{w}_a^{\intercal},\,\mathbf{w}_T^{\intercal},\,\mathbf{w}_b^{\intercal})^{\intercal}$~--- полный вектор случайных помех на входе $\mathbf{u}$ системы. Ковариационная матрица: $\mathbf{Q}\hm=\mathrm{diag}(\mathbf{C}_{\omega},\,\mathbf{C}_a,\,\mathbf{C}_T,\,\mathbf{C}_b)$.
+
+$\mathbf{\nu}$~--- вектор белого шума, отвечающий случайным помехам при измерении выхода $\mathbf{y}$ системы. Ковариационная матрица: $\mathbf{R}\hm=\mathrm{diag}(\sigma_{P_x}^2,\,\sigma_{P_y}^2,\,\sigma_{P_z}^2,\,\sigma_{B_x}^2,\,\sigma_{B_y}^2,\,\sigma_{B_z}^2,\,\sigma_{A}^2)$.
+
+$\mathbf{g}\hm=(0,\,0,\,g)^{\intercal}$~--- ускорение свободного падения в опорной СК ($g\hm=\SI{9,80665}{м/с^2}$).
+
+$\mathbf{\omega}\hm=\mathbf{\omega}_m\hm+\mathbf{w}_{\omega}\hm-\mathbf{b}_{\omega}$~--- чистый (неискаженный) вектор угловых скоростей вращения связанной СК относительно опорной.
+
+$\mathbf{a}\hm=\mathbf{R}_{EI}(\mathbf{a}_m\hm+\mathbf{w}_a)\hm-\mathbf{g}$~--- действительное линейное ускорение связанной СК относительно опорной.
+
+$\mathbf{B}_I\hm=(B_x^{(I)},\,B_y^{(I)},\,B_z^{(I)})^\intercal$~--- магнитное поле Земли в опорной СК.
+
+$p_0$~--- атмосферное давление в центре опорной СК.
+
+$R\hm=\SI{8,314}{Дж/(моль.К)}$~--- универсальная газовая постоянная.
+
+\section*{Основные уравнения}
+
+Моделирование эволюции вектора $\mathbf{x}$ основано на общеизвестной системе кинематических уравнений движения твердого тела~\cite{schinstock}. В дальнейшем все величины, значения которых зависят от СК, снабжаются соответствующими индексами.
+
+Поступательное движение связанной СК относительно опорной записывается уравнениями Ньютона:
+
+\begin{equation}
+\label{eq:translation}
+\dot{\mathbf{P}}_I\hm=\mathbf{v}_I;\,\dot{\mathbf{v}}_I\hm=\mathbf{a}_I.
+\end{equation}
+
+\noindent В принятых обозначениях (см. предыдущий раздел) имеем: $\mathbf{P}_I\hm=\mathbf{P};\,\mathbf{v}_I\hm=\mathbf{v};\,\mathbf{a}_I\hm=\mathbf{R}_{IE}\mathbf{a}$.
+
+Система кинематических уравнений для вращательного движения, задающая угловую ориентацию связанной СК относительно опорной, имеет вид~\cite{branets_quat,chelnokov}:
+
+\begin{equation}
+\label{eq:rotation}
+\dot{\mathbf{q}}_I\hm=\frac{1}{2}\mathbf{J}_I(\mathbf{q}_I)\mathbf{\omega}_I,
+\end{equation}
+
+\noindent причем $\mathbf{q}_I\hm=\mathbf{q};\,\mathbf{\omega}_I\hm=\mathbf{\omega}$, а $\mathbf{J}_I$~--- матричное выражение для кватерниона $\mathbf{q}_I$:
+
+\begin{equation}
+\label{eq:rotation_quaternion}
+\mathbf{J}_I(\mathbf{q}_I)\hm\doteq\mathbf{J}(\mathbf{q})\hm=\left[\begin{array}{rrr}
+-q_1&-q_2&-q_3\\
+q_0&-q_3&q_2\\
+q_3&q_0&-q_1\\
+-q_2&q_1&q_0
+\end{array}\right].
+\end{equation}
+
+\noindent При этом компоненты кватерниона должны удовлетворять условию нормировки:
+
+\begin{equation}
+\label{eq:rotation_quaternion_norm}
+||\mathbf{q}(t)||^2\hm=q_0^2\hm+q_1^2\hm+q_2^2\hm+q_3^2\hm=1.
+\end{equation}
+
+При выполнении условия~(\ref{eq:rotation_quaternion_norm}) матрица перехода $\mathbf{R}_{EI}\hm=\mathbf{R}_{IE}^{-1}\hm=\mathbf{R}_{IE}^{\intercal}$ может быть записана в следующем виде:
+
+\begin{equation}
+\label{eq:trans_matrix}
+\mathbf{R}_{EI}\hm\doteq\mathbf{R}_{EI}(\mathbf{q})\hm=\left[\begin{array}{rrr}
+q_0^2+q_1^2-q_2^2-q_3^2&2(q_1q_2+q_0q_3)&2(q_1q_3-q_0q_2)\\
+2(q_1q_2-q_0q_3)&q_0^2-q_1^2+q_2^2-q_3^2&2(q_2q_3+q_0q_1)\\
+2(q_1q_3+q_0q_2)&2(q_2q_3-q_0q_1)&q_0^2-q_1^2-q_2^2+q_3^2
+\end{array}\right].
+\end{equation}
+
+Для идентификации компонент ошибок гиродатчиков примем следующую модель~\cite{branets_ins}:
+
+\begin{equation}
+\label{eq:bias}
+\begin{aligned}
+&\dot{\mathbf{b}}_0\hm=\mathbf{w}_b;\\
+&\ddot{\mathbf{b}}_i\hm+\mu_i^2\mathbf{b}_i\hm=0,\,i\hm=\overline{1,N_b};\\
+&\dot\mathbf{\mu}\hm=\mathbf{0}.
+\end{aligned}
+\end{equation}
+
+\noindent Понижая порядок дифференцирования, перепишем систему~(\ref{eq:bias}) в канонической форме:
+
+\begin{equation}
+\label{eq:bias_canon}
+\begin{aligned}
+&\dot{\mathbf{b}}\hm=\mathbf{A}_b\mathbf{b}\hm+\mathbf{Sw}_b;\\
+&\dot\mathbf{\mu}\hm=\mathbf{0},
+\end{aligned}
+\end{equation}
+
+\noindent где $\mathbf{S}\hm=(\mathbf{I}_{3\times 3},\,\mathbf{O}_{3\times 3N_b})^{\intercal}$~--- оператор продолжения 3-вектора на $3(N_b+1)$-мерное пространство; $\mathbf{A}_b\hm=\mathrm{diag}(\mathbf{O}_{3\times 3},\,\mathbf{A}_1,\,\dots,\,\mathbf{A}_{N_b})$~--- блочно-диагональная матрица, в которой
+
+\begin{equation}
+\nonumber
+\mathbf{A}_i\hm=\left[\begin{array}{rr}
+\mathbf{O}_{3\times 3}&\mathbf{I}_{3\times 3}\\
+-\mu_i^2\mathbf{I}_{3\times 3}&\mathbf{O}_{3\times 3}
+\end{array}\right],\,i\hm=\overline{1,N_b}.
+\end{equation}
+
+В итоге нами сформирована следующая нелинейная динамическая система:
+
+\begin{equation}
+\label{eq:model}
+\begin{aligned}
+&\dot{\mathbf{x}}\hm=\mathbf{f}(\mathbf{x},\,\mathbf{u},\,\mathbf{w});\\
+&\mathbf{y}\hm=\mathbf{h}(\mathbf{x})\hm+\mathbf{\nu},
+\end{aligned}
+\end{equation}
+
+\noindent в которой
+
+\begin{equation}
+\label{eq:model_right}
+\mathbf{f}(\mathbf{x},\,\mathbf{u},\,\mathbf{w})\hm=\left[\begin{array}{c}
+\mathbf{v}\\
+\mathbf{R}_{IE}(\mathbf{q})(\mathbf{a}_m+\mathbf{w}_a)\hm-\mathbf{g}\\
+\frac{1}{2}\mathbf{J}(\mathbf{q})(\mathbf{\omega}_m\hm+\mathbf{w}_{\omega}\hm-\mathbf{b}_{\omega})\\
+\mathbf{A}_b\mathbf{b}\hm+\mathbf{Sw}_b\\
+\mathbf{0}
+\end{array}\right],\,
+\mathbf{h}(\mathbf{x})\hm=\left[\begin{array}{c}
+\mathbf{P}\\
+\mathbf{v}\\
+\mathbf{R}_{EI}(\mathbf{q})\mathbf{B}_I\\
+p_0\exp\left(-\frac{Mg}{RT}P_z\right)
+\end{array}\right].
+\end{equation}
+
+\section*{Линеаризация и дискретизация}
+
+С целью упрощения предложенной модели~(\ref{eq:model}), заменим в ней операцию дифференцирования взятием конечной разности (с постоянным шагом $\tau$) и отбросим члены второго порядка малости:
+
+\begin{equation}
+\label{eq:model_approx}
+\begin{aligned}
+&\frac{\mathbf{x}_{k+1}-\mathbf{x}_k}{\tau}\hm=\mathbf{f}(\mathbf{x}_k,\,\mathbf{u}_k,\,\mathbf{w}_k);\\
+&\mathbf{y}_{k+1}\hm=\mathbf{h}(\mathbf{x}_{k+1})\hm+\mathbf{\nu}_{k+1}.
+\end{aligned}
+\end{equation}
+
+Далее, раскладывая правые части записанных равенств в ряд Тейлора в окрестности вектора $(\mathbf{x}_{k-1},\,\mathbf{u}_k,\,\mathbf{0})^{\intercal}$ и вновь опуская высшие члены разложения, придем к следующим соотношениям:
+
+\begin{equation}
+\nonumber
+\begin{aligned}
+&\mathbf{f}(\mathbf{x}_k,\,\mathbf{u}_k,\,\mathbf{w}_k)\hm=\mathbf{f}(\mathbf{x}_{k-1},\,\mathbf{u}_k,\,\mathbf{0})\hm+\mathbf{F}_k(\mathbf{x}_k\hm-\mathbf{x}_{k-1})\hm+\mathbf{G}_k\mathbf{w}_k;\\
+&\mathbf{h}(\mathbf{x}_{k+1})\hm=\mathbf{h}(\mathbf{x}_k)\hm+\mathbf{H}_k(\mathbf{x}_{k+1}\hm-\mathbf{x}_k),
+\end{aligned}
+\end{equation}
+
+\noindent где
+
+\begin{equation}
+\nonumber
+\mathbf{F}_k\hm=\frac{\partial\mathbf{f}}{\partial\mathbf{x}}\biggr\rvert_{\begin{subarray}{l}\mathbf{x}=\mathbf{x}_{k-1}\\\mathbf{u}=\mathbf{u}_k\\\mathbf{w}=\mathbf{0}\end{subarray}},\,\mathbf{G}_k\hm=\frac{\partial\mathbf{f}}{\partial\mathbf{w}}\biggr\rvert_{\begin{subarray}{l}\mathbf{x}=\mathbf{x}_{k-1}\\\mathbf{u}=\mathbf{u}_k\\\mathbf{w}=\mathbf{0}\end{subarray}},\,\mathbf{H}_k\hm=\frac{\partial\mathbf{h}}{\partial\mathbf{x}}\biggr\rvert_{\mathbf{x}=\mathbf{x}_k}
+\end{equation}
+
+\noindent--- матрицы Якоби.
+
+Подставляя получившиеся выражения в~(\ref{eq:model_approx}) и вводя замену $\mathbf{f}_k\hm\doteq\mathbf{f}(\mathbf{x}_{k-1},\,\mathbf{u}_k,\,\mathbf{0})\hm-\mathbf{F}_k\mathbf{x}_{k-1}$, $\mathbf{h}_k\hm\doteq\mathbf{h}(\mathbf{x}_k)\hm-\mathbf{H}_k\mathbf{x}_k$, $\mathbf{\Phi}_k\hm\doteq(\mathbf{I}\hm+\tau\mathbf{F}_k)$, $\mathbf{\Gamma}_k\hm\doteq\tau\mathbf{G}_k$, придем к следующему линеаризованному представлению модели~(\ref{eq:model}):
+
+\begin{equation}
+\label{eq:model_linear}
+\begin{aligned}
+&\mathbf{x}_{k+1}\hm=\mathbf{\Phi}_k\mathbf{x}_k\hm+\mathbf{\Gamma}_k\mathbf{w}_k\hm+\mathbf{f}_k;\\
+&\mathbf{y}_{k+1}\hm=\mathbf{H}_k\mathbf{x}_{k+1}\hm+\mathbf{\nu}_{k+1}\hm+\mathbf{h}_k.
+\end{aligned}
+\end{equation}
+
+\noindent Переменные $\mathbf{f}_k$ и $\mathbf{h}_k$ вычисляются элементарно на основании результатов предшествующей итерации, а потому могут считаться известными.
+
+Для матриц $\mathbf{F}_k$, $\mathbf{G}_k$ и $\mathbf{H}_k$ могут быть найдены явные выражения через компоненты векторов $\mathbf{x}$ и $\mathbf{u}$ (для простоты соответствующие индексы опускаются):
+
+\begin{equation}
+\nonumber
+\mathbf{F}\hm=\left[\begin{array}{c|c}
+$\mathbf{O}_{3\times 3}\mathbf{I}_{3\times 3}$&$\mathbf{O}_{3\times 7}$\\\hline
+\raisebox{-15pt}{{\huge\mbox{{$\mathbf{O}_{10\times 6}$}}}}&$\mathbf{F}_{vq}\mathbf{O}_{3\times 3}$\\[-4ex]
+&$\mathbf{F}_{qq}\mathbf{F}_{qb}$\\[-0.5ex]
+&$\mathbf{O}_{3\times 7}$
+\end{array}\right].
+\end{equation}
+
+\begin{thebibliography}{9}
+\bibitem{ivanov} Иванов,~Д.~С., Ткачев,~С.~С. и др. Калибровка датчиков для определения ориентации малого космического аппарата: Препринт ИПМ им.~М.~В.~Келдыша РАН.~--- М., 2010.~--- 30~с.
+\bibitem{ozyagcilar} Ozyagcilar,~T. Calibrating an eCompass in the Presence of Hard and Soft-Iron Interference: Freescale Semiconductor Application Note /\!\!/ AN4246.~--- Rev.~3, 04/2013.~--- 17~pp.
+\bibitem{schinstock} Schinstock,~D. GPS-Aided INS Solution for OpenPilot.~--- \url{https://wiki.openpilot.org/download/attachments/2097177/INSGPSAlg.pdf}.
+\bibitem{branets_quat} Бранец,~В.~Н., Шмыглевский,~И.~П. Применение кватернионов в задачах ориентации твердого тела.~--- М.: Наука, 1973.~--- 320~с.
+\bibitem{chelnokov} Челноков,~Ю.~Н. Кватернионные модели и методы динамики, навигации и управления движением.~--- М.: ФИЗМАТЛИТ, 2011.~--- 560~с.
+\bibitem{branets_ins} Бранец,~В.~Н., Шмыглевский,~И.~П. Введение в теорию бесплатформенных навигационных систем.~--- М.: Наука, 1992.~--- 280~с.
+\end{thebibliography}
+
+\end{document}
